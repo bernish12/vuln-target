@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SecureShop — Online Shopping</title>
+
+<!-- ⚠️ A08: No SRI integrity hashes on external CDN scripts -->
+<!-- ⚠️ A06: jQuery 1.8.3 — MULTIPLE known CVEs (CVE-2015-9251, CVE-2019-11358, CVE-2020-11022) -->
+<script src="https://code.jquery.com/jquery-1.8.3.min.js"></script>
+<!-- ⚠️ A06: Bootstrap 3.3.4 — outdated, no security patches -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
+
+<!-- ⚠️ A05: NO Content-Security-Policy meta tag -->
+<!-- ⚠️ A05: NO X-Frame-Options (clickjacking possible) -->
+
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f0f0f; color: #e0e0e0; }
+
+    /* ── HEADER ── */
+    .header {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        padding: 15px 30px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 2px solid #e94560;
+        position: sticky;
+        top: 0;
+        z-index: 999;
+        box-shadow: 0 2px 20px rgba(233,69,96,0.3);
+    }
+    .logo {
+        font-size: 26px;
+        font-weight: 900;
+        color: #fff;
+        letter-spacing: -0.5px;
+    }
+    .logo span { color: #e94560; }
+    .logo small { font-size: 11px; color: #64748b; display: block; font-weight: 400; }
+    .header-nav { display: flex; gap: 10px; align-items: center; }
+    .nav-btn {
+        background: transparent;
+        border: 1px solid #334155;
+        color: #94a3b8;
+        padding: 7px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        transition: all 0.2s;
+    }
+    .nav-btn:hover { border-color: #e94560; color: #e94560; }
+    .nav-btn.active { background: #e94560; border-color: #e94560; color: #fff; }
+    .search-bar {
+        display: flex;
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 8px;
+        overflow: hidden;
+        width: 320px;
+    }
+    .search-bar input {
+        flex: 1;
+        background: transparent;
+        border: none;
+        outline: none;
+        color: #e2e8f0;
+        padding: 8px 14px;
+        font-size: 13px;
+    }
+    .search-bar button {
+        background: #e94560;
+        border: none;
+        color: #fff;
+        padding: 8px 16px;
+        cursor: pointer;
+        font-size: 13px;
+    }
+
+    /* ── HERO BANNER ── */
+    .hero {
+        background: linear-gradient(135deg, #1a1a2e, #0f3460);
+        padding: 60px 40px;
+        text-align: center;
+        border-bottom: 1px solid #1e293b;
+        position: relative;
+        overflow: hidden;
+    }
+    .hero::before {
+        content: '';
+        position: absolute;
+        width: 400px; height: 400px;
+        background: radial-gradient(circle, rgba(233,69,96,0.15), transparent 70%);
+        top: -100px; right: -100px;
+        border-radius: 50%;
+    }
+    .hero h1 { font-size: 42px; font-weight: 900; color: #fff; margin-bottom: 10px; }
+    .hero h1 span { color: #e94560; }
+    .hero p { color: #94a3b8; font-size: 16px; margin-bottom: 25px; }
+    .hero-badges { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+    .badge-item {
+        background: rgba(233,69,96,0.1);
+        border: 1px solid rgba(233,69,96,0.3);
+        color: #e94560;
+        padding: 5px 14px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    /* ── VULN ALERT BANNER ── */
+    .vuln-banner {
+        background: linear-gradient(90deg, #1a0a0a, #2d0f0f);
+        border: 1px solid #dc2626;
+        border-left: 4px solid #dc2626;
+        padding: 10px 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 12px;
+        color: #fca5a5;
+    }
+    .vuln-banner strong { color: #ef4444; }
+
+    /* ── MAIN CONTENT ── */
+    .main { display: flex; min-height: calc(100vh - 70px); }
+    .sidebar {
+        width: 220px;
+        background: #111827;
+        border-right: 1px solid #1e293b;
+        padding: 20px 0;
+        flex-shrink: 0;
+    }
+    .sidebar-title { padding: 0 20px 10px; font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
+    .sidebar-item {
+        padding: 10px 20px;
+        cursor: pointer;
+        color: #94a3b8;
+        font-size: 13px;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .sidebar-item:hover, .sidebar-item.active { background: #1e293b; color: #e2e8f0; border-left: 3px solid #e94560; }
+    .sidebar-item .dot { width: 6px; height: 6px; border-radius: 50%; background: #e94560; }
+
+    .content { flex: 1; padding: 30px; overflow-y: auto; }
+
+    /* ── PANELS ── */
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* ── PRODUCTS ── */
+    .section-title { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 20px; }
+    .section-title span { color: #e94560; }
+    .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px; }
+    .product-card {
+        background: #1a1a2e;
+        border: 1px solid #1e293b;
+        border-radius: 12px;
+        padding: 20px;
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+    .product-card:hover { border-color: #e94560; transform: translateY(-2px); box-shadow: 0 8px 25px rgba(233,69,96,0.15); }
+    .product-icon { font-size: 36px; margin-bottom: 12px; }
+    .product-name { font-size: 14px; font-weight: 600; color: #e2e8f0; margin-bottom: 5px; }
+    .product-category { font-size: 11px; color: #64748b; margin-bottom: 10px; }
+    .product-price { font-size: 18px; font-weight: 700; color: #e94560; }
+    .product-price small { font-size: 11px; color: #64748b; font-weight: 400; }
+    .btn-cart {
+        width: 100%;
+        background: #e94560;
+        border: none;
+        color: #fff;
+        padding: 8px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 12px;
+        transition: all 0.2s;
+    }
+    .btn-cart:hover { background: #c73652; }
+
+    /* ── SEARCH RESULTS ── */
+    .search-results-box {
+        background: #111827;
+        border: 1px solid #1e293b;
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 20px;
+    }
+    .search-query-display { 
+        background: #1e293b; 
+        border: 1px solid #334155; 
+        padding: 10px 15px; 
+        border-radius: 6px; 
+        margin-bottom: 15px;
+        font-size: 13px;
+        color: #94a3b8;
+    }
+
+    /* ── LOGIN FORM ── */
+    .auth-card {
+        max-width: 420px;
+        margin: 0 auto;
+        background: #111827;
+        border: 1px solid #1e293b;
+        border-radius: 14px;
+        padding: 35px;
+    }
+    .auth-card h2 { font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 5px; }
+    .auth-card p { color: #64748b; font-size: 13px; margin-bottom: 25px; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .form-control-custom {
+        width: 100%;
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 8px;
+        padding: 10px 14px;
+        color: #e2e8f0;
+        font-size: 14px;
+        outline: none;
+        transition: border-color 0.2s;
+    }
+    .form-control-custom:focus { border-color: #e94560; }
+    .btn-primary-custom {
+        width: 100%;
+        background: linear-gradient(135deg, #e94560, #c73652);
+        border: none;
+        color: #fff;
+        padding: 12px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .btn-primary-custom:hover { opacity: 0.9; transform: translateY(-1px); }
+    .demo-creds {
+        background: #1a1a2e;
+        border: 1px solid #334155;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 20px;
+        font-size: 12px;
+        color: #94a3b8;
+    }
+    .demo-creds strong { color: #e94560; }
+    .cred-item { background: #111827; border-radius: 4px; padding: 4px 8px; margin: 3px 0; cursor: pointer; }
+    .cred-item:hover { background: #1e293b; }
+
+    /* ── PROFILE / DASHBOARD ── */
+    .profile-header {
+        background: linear-gradient(135deg, #1a1a2e, #0f3460);
+        border: 1px solid #1e293b;
+        border-radius: 12px;
+        padding: 25px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+    .avatar {
+        width: 65px; height: 65px;
+        background: linear-gradient(135deg, #e94560, #c73652);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        font-weight: 700;
+        color: #fff;
+        flex-shrink: 0;
+    }
+    .profile-info h3 { font-size: 18px; font-weight: 700; color: #fff; }
+    .profile-info p { font-size: 13px; color: #64748b; }
+    .role-badge {
+        display: inline-block;
+        background: rgba(233,69,96,0.15);
+        border: 1px solid rgba(233,69,96,0.4);
+        color: #e94560;
+        padding: 2px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+        margin-top: 4px;
+    }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+    .info-card {
+        background: #111827;
+        border: 1px solid #1e293b;
+        border-radius: 10px;
+        padding: 18px;
+    }
+    .info-card label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 5px; }
+    .info-card .value { font-size: 15px; font-weight: 600; color: #e2e8f0; }
+    .info-card .value.sensitive { color: #ef4444; font-family: monospace; }
+    .vuln-tag {
+        display: inline-block;
+        background: rgba(239,68,68,0.1);
+        border: 1px solid rgba(239,68,68,0.3);
+        color: #ef4444;
+        padding: 1px 6px;
+        border-radius: 3px;
+        font-size: 10px;
+        font-weight: 700;
+        margin-left: 5px;
+    }
+
+    /* ── VULN SHOWCASE ── */
+    .vuln-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }
+    .vuln-card {
+        background: #111827;
+        border: 1px solid #1e293b;
+        border-radius: 10px;
+        padding: 18px;
+        border-left: 3px solid;
+        transition: all 0.2s;
+    }
+    .vuln-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.3); }
+    .vuln-card.critical { border-left-color: #dc2626; }
+    .vuln-card.high { border-left-color: #f97316; }
+    .vuln-card.medium { border-left-color: #eab308; }
+    .vuln-card-title { font-size: 13px; font-weight: 700; color: #e2e8f0; margin-bottom: 5px; }
+    .vuln-card-id { font-size: 11px; color: #e94560; font-weight: 600; margin-bottom: 8px; }
+    .vuln-card-desc { font-size: 12px; color: #64748b; line-height: 1.5; }
+    .severity-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 3px;
+        font-size: 10px;
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+    .severity-badge.critical { background: rgba(220,38,38,0.2); color: #ef4444; }
+    .severity-badge.high { background: rgba(249,115,22,0.2); color: #f97316; }
+    .severity-badge.medium { background: rgba(234,179,8,0.2); color: #eab308; }
+
+    /* ── ADMIN PANEL ── */
+    .admin-banner {
+        background: linear-gradient(135deg, #1a0a0a, #2d1515);
+        border: 1px solid #dc2626;
+        border-radius: 10px;
+        padding: 15px 20px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #fca5a5;
+        font-size: 13px;
+    }
+
+    /* ── TRANSFER FORM ── */
+    .transfer-card {
+        background: #111827;
+        border: 1px solid #1e293b;
+        border-radius: 12px;
+        padding: 25px;
+        max-width: 450px;
+    }
+
+    /* ── TOAST ── */
+    .toast {
+        position: fixed;
+        bottom: 25px;
+        right: 25px;
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 10px;
+        padding: 14px 20px;
+        font-size: 13px;
+        color: #e2e8f0;
+        z-index: 9999;
+        display: none;
+        max-width: 350px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        animation: slideIn 0.3s ease;
+    }
+    .toast.success { border-left: 3px solid #22c55e; }
+    .toast.error { border-left: 3px solid #ef4444; }
+    .toast.warning { border-left: 3px solid #f59e0b; }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
+
+    /* ── MISC ── */
+    .text-red { color: #ef4444; }
+    .text-green { color: #22c55e; }
+    .text-yellow { color: #eab308; }
+    .btn-sm-custom {
+        background: #1e293b;
+        border: 1px solid #334155;
+        color: #94a3b8;
+        padding: 5px 12px;
+        border-radius: 5px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .btn-sm-custom:hover { border-color: #e94560; color: #e94560; }
+    .btn-danger-sm {
+        background: rgba(220,38,38,0.1);
+        border: 1px solid rgba(220,38,38,0.3);
+        color: #ef4444;
+        padding: 5px 12px;
+        border-radius: 5px;
+        font-size: 12px;
+        cursor: pointer;
+    }
+    .code-block {
+        background: #0a0a0a;
+        border: 1px solid #1e293b;
+        border-radius: 6px;
+        padding: 10px 14px;
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+        color: #22c55e;
+        margin: 8px 0;
+        word-break: break-all;
+    }
+    .divider { border: none; border-top: 1px solid #1e293b; margin: 20px 0; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0f0f0f; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+    <div class="logo">
+        🛡️ Secure<span>Shop</span>
+        <small>Your trusted online marketplace</small>
+    </div>
+    <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="Search products...">
+        <button onclick="searchProducts()">🔍</button>
+    </div>
+    <div class="header-nav">
+        <button class="nav-btn" onclick="showPanel('shop')">🛒 Shop</button>
+        <button class="nav-btn" onclick="showPanel('vulns')">🔓 Vulnerabilities</button>
+        <button class="nav-btn" id="adminNavBtn" onclick="gotoAdmin()" style="display:none; border-color:#ef4444; color:#ef4444;">⚡ Admin</button>
+        <button class="nav-btn" id="loginNavBtn" onclick="showPanel('login')">👤 Login</button>
+        <button class="nav-btn active" id="logoutNavBtn" onclick="doLogout()" style="display:none; background:#dc2626; border-color:#dc2626;">Logout</button>
+    </div>
+</div>
+
+<!-- VULN WARNING BANNER -->
+<div class="vuln-banner">
+    ⚠️ <strong>VulnTarget Demo App</strong> — This site contains <strong>ALL OWASP Top 10</strong> vulnerabilities intentionally. Scan with <strong>VulnShield</strong> to discover them!
+</div>
+
+<div class="main">
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <div class="sidebar-title">Navigation</div>
+        <div class="sidebar-item active" onclick="showPanel('shop')"><div class="dot"></div> Shop</div>
+        <div class="sidebar-item" onclick="showPanel('login')"><div class="dot"></div> Login / Register</div>
+        <div class="sidebar-item" onclick="showPanel('profile')" id="profileSideBtn" style="display:none"><div class="dot"></div> My Profile</div>
+        <div class="sidebar-item" onclick="showPanel('transfer')" id="transferSideBtn" style="display:none"><div class="dot"></div> Transfer Funds</div>
+        <div class="sidebar-item" onclick="showPanel('vulns')"><div class="dot"></div> Vuln Showcase</div>
+
+        <br>
+        <div class="sidebar-title">🔴 Attack Surfaces</div>
+        <div class="sidebar-item" onclick="demoXSS()">💉 XSS Demo</div>
+        <div class="sidebar-item" onclick="demoSSRF()">🔁 SSRF Demo</div>
+        <div class="sidebar-item" onclick="demoIDOR()">🔓 IDOR Demo</div>
+        <div class="sidebar-item" onclick="demoDebug()">🐛 Debug Info</div>
+    </div>
+
+    <!-- CONTENT PANELS -->
+    <div class="content">
+
+        <!-- SHOP PANEL -->
+        <div class="panel active" id="panel-shop">
+            <!-- Hero -->
+            <div class="hero" style="margin: -30px -30px 25px; border-radius: 0;">
+                <h1>Welcome to <span>SecureShop</span></h1>
+                <p>The most insecure online store — intentionally vulnerable for security research</p>
+                <div class="hero-badges">
+                    <span class="badge-item">🔴 A01: Broken Access Control</span>
+                    <span class="badge-item">🔴 A02: Crypto Failures</span>
+                    <span class="badge-item">🔴 A03: Injection/XSS</span>
+                    <span class="badge-item">🔴 A04: Insecure Design</span>
+                    <span class="badge-item">🟡 A05: Misconfiguration</span>
+                    <span class="badge-item">🟡 A06: Old Components</span>
+                    <span class="badge-item">🟡 A07: Auth Failures</span>
+                    <span class="badge-item">🟡 A08: Integrity Failures</span>
+                    <span class="badge-item">🟡 A09: Logging Failures</span>
+                    <span class="badge-item">🔴 A10: SSRF</span>
+                </div>
+            </div>
+
+            <div id="searchResultsBox" style="display:none;" class="search-results-box">
+                <div class="search-query-display">
+                    ⚠️ <strong style="color:#ef4444">A03 XSS:</strong> Search query reflected unsanitized →
+                    <!-- ⚠️ A03: XSS — search query rendered as innerHTML -->
+                    <span id="searchQueryDisplay"></span>
+                </div>
+                <div id="searchResultsList"></div>
+            </div>
+
+            <h2 class="section-title">Featured <span>Products</span></h2>
+            <div class="products-grid" id="productsGrid"></div>
+        </div>
+
+        <!-- LOGIN PANEL -->
+        <div class="panel" id="panel-login">
+            <div class="auth-card">
+                <h2>🔐 Sign In</h2>
+                <p>Login to access your account and admin panel</p>
+
+                <div class="demo-creds">
+                    <div style="margin-bottom:6px;"><strong>⚠️ Demo Credentials (Weak Passwords!):</strong></div>
+                    <div class="cred-item" onclick="fillCreds('admin','admin123')">👑 admin / admin123 <span class="vuln-tag">A07</span></div>
+                    <div class="cred-item" onclick="fillCreds('bernish','password')">👤 bernish / password <span class="vuln-tag">A07</span></div>
+                    <div class="cred-item" onclick="fillCreds('alice','123456')">👤 alice / 123456 <span class="vuln-tag">A07</span></div>
+                </div>
+
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="loginUser" class="form-control-custom" placeholder="Enter username">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="loginPass" class="form-control-custom" placeholder="Enter password">
+                </div>
+                <!-- ⚠️ A04: No CSRF token in form -->
+                <button class="btn-primary-custom" onclick="doLogin()">Sign In</button>
+
+                <div id="loginMsg" style="margin-top:12px; font-size:13px;"></div>
+
+                <hr class="divider">
+                <div style="font-size:12px; color:#64748b;">
+                    ⚠️ <strong style="color:#f59e0b">A07 Vulnerabilities:</strong>
+                    No rate limiting • No account lockout • Weak passwords allowed • Session token in URL • No HttpOnly cookie
+                </div>
+            </div>
+        </div>
+
+        <!-- PROFILE PANEL -->
+        <div class="panel" id="panel-profile">
+            <div class="profile-header" id="profileHeader">
+                <div class="avatar" id="profileAvatar">?</div>
+                <div class="profile-info">
+                    <h3 id="profileName">-</h3>
+                    <p id="profileEmail">-</p>
+                    <div class="role-badge" id="profileRole">-</div>
+                </div>
+            </div>
+
+            <div style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); border-radius:8px; padding:12px 16px; margin-bottom:20px; font-size:12px; color:#fca5a5;">
+                ⚠️ <strong>A02 Cryptographic Failure:</strong> Sensitive data returned in plaintext — passwords, card numbers, CVV all visible in API response!
+            </div>
+
+            <div class="info-grid" id="profileGrid">
+                <!-- Filled by JS -->
+            </div>
+
+            <div style="font-size:12px; color:#64748b; margin-top:10px;">
+                🔗 Try IDOR: <span id="idorLinks"></span>
+            </div>
+        </div>
+
+        <!-- TRANSFER PANEL -->
+        <div class="panel" id="panel-transfer">
+            <div class="transfer-card">
+                <h2 class="section-title">💸 Fund <span>Transfer</span></h2>
+
+                <div style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); border-radius:8px; padding:12px 16px; margin-bottom:20px; font-size:12px; color:#fca5a5;">
+                    ⚠️ <strong>A04 Insecure Design:</strong> No CSRF token • No balance check • Negative amount = steal money!
+                </div>
+
+                <div class="form-group">
+                    <label>Transfer To (Username)</label>
+                    <input type="text" id="transferTo" class="form-control-custom" placeholder="e.g. alice">
+                </div>
+                <div class="form-group">
+                    <label>Amount (₹) — Try negative: -99999</label>
+                    <input type="number" id="transferAmount" class="form-control-custom" placeholder="e.g. -99999">
+                </div>
+                <button class="btn-primary-custom" onclick="doTransfer()">Transfer</button>
+                <div id="transferMsg" style="margin-top:12px;font-size:13px;"></div>
+            </div>
+        </div>
+
+        <!-- VULN SHOWCASE PANEL -->
+        <div class="panel" id="panel-vulns">
+            <h2 class="section-title">🔓 OWASP Top 10 <span>Vulnerabilities</span></h2>
+            <p style="color:#64748b; margin-bottom:20px; font-size:13px;">All vulnerabilities deliberately implemented for VulnShield scanning demo</p>
+            <div class="vuln-cards">
+
+                <div class="vuln-card critical">
+                    <div class="vuln-card-id">A01:2021</div>
+                    <span class="severity-badge critical">CRITICAL</span>
+                    <div class="vuln-card-title">Broken Access Control</div>
+                    <div class="vuln-card-desc">Admin panel accessible to any logged-in user (no role check). IDOR: any user reads/modifies other users' data via /api/user/:id. Horizontal privilege escalation possible.</div>
+                    <div class="code-block">/admin → any user can access<br>/api/user/1 → returns admin's card+CVV</div>
+                </div>
+
+                <div class="vuln-card critical">
+                    <div class="vuln-card-id">A02:2021</div>
+                    <span class="severity-badge critical">CRITICAL</span>
+                    <div class="vuln-card-title">Cryptographic Failures</div>
+                    <div class="vuln-card-desc">Passwords stored in plaintext. API exposes card numbers, CVV, passwords. No HttpOnly/Secure cookie flags. API keys hardcoded in source code.</div>
+                    <div class="code-block">/api/profile → password, card, CVV<br>/api/admin/users → all creds leaked</div>
+                </div>
+
+                <div class="vuln-card critical">
+                    <div class="vuln-card-id">A03:2021</div>
+                    <span class="severity-badge critical">CRITICAL</span>
+                    <div class="vuln-card-title">Injection — XSS</div>
+                    <div class="vuln-card-desc">Search query reflected unsanitized in response. Username reflected in login error without encoding. No Content-Security-Policy header to block script execution.</div>
+                    <div class="code-block">/api/search?q=&lt;script&gt;alert(1)&lt;/script&gt;</div>
+                </div>
+
+                <div class="vuln-card high">
+                    <div class="vuln-card-id">A04:2021</div>
+                    <span class="severity-badge high">HIGH</span>
+                    <div class="vuln-card-title">Insecure Design</div>
+                    <div class="vuln-card-desc">No CSRF protection on fund transfer. Business logic flaw: negative transfer amount steals money from victim. No input validation or balance check.</div>
+                    <div class="code-block">POST /api/transfer amount=-99999<br>→ Steals ₹99,999 from target!</div>
+                </div>
+
+                <div class="vuln-card high">
+                    <div class="vuln-card-id">A05:2021</div>
+                    <span class="severity-badge high">HIGH</span>
+                    <div class="vuln-card-title">Security Misconfiguration</div>
+                    <div class="vuln-card-desc">Missing CSP, X-Frame-Options, HSTS, X-Content-Type-Options. Debug endpoint exposes all env vars, sessions, passwords. Directory traversal via /api/file?name=../../</div>
+                    <div class="code-block">/debug → ALL secrets exposed<br>/api/file?name=../../etc/passwd</div>
+                </div>
+
+                <div class="vuln-card high">
+                    <div class="vuln-card-id">A06:2021</div>
+                    <span class="severity-badge high">HIGH</span>
+                    <div class="vuln-card-title">Vulnerable & Outdated Components</div>
+                    <div class="vuln-card-desc">jQuery 1.8.3 (CVE-2015-9251, CVE-2019-11358, CVE-2020-11022). Bootstrap 3.3.4. OpenSSL 1.0.2k (EOL). No SRI on CDN scripts.</div>
+                    <div class="code-block">jquery-1.8.3.min.js (no integrity=)<br>bootstrap/3.3.4 (no SRI hash)</div>
+                </div>
+
+                <div class="vuln-card high">
+                    <div class="vuln-card-id">A07:2021</div>
+                    <span class="severity-badge high">HIGH</span>
+                    <div class="vuln-card-title">Identification & Auth Failures</div>
+                    <div class="vuln-card-desc">No brute-force protection. Weak passwords (admin123, 123456) accepted. Session token exposed in URL. No HttpOnly/Secure cookie. Predictable sequential session IDs.</div>
+                    <div class="code-block">/profile?token=sess_1001_admin<br>Cookie: token=sess_1001_admin (readable by JS)</div>
+                </div>
+
+                <div class="vuln-card medium">
+                    <div class="vuln-card-id">A08:2021</div>
+                    <span class="severity-badge medium">MEDIUM</span>
+                    <div class="vuln-card-title">Software & Data Integrity Failures</div>
+                    <div class="vuln-card-desc">No SRI hashes on CDN scripts — supply chain attack possible. Unsafe deserialization of base64 cart data allows privilege escalation by injecting role field.</div>
+                    <div class="code-block">POST /api/restore-cart<br>cartToken = base64({role:"admin"})</div>
+                </div>
+
+                <div class="vuln-card medium">
+                    <div class="vuln-card-id">A09:2021</div>
+                    <span class="severity-badge medium">MEDIUM</span>
+                    <div class="vuln-card-title">Security Logging & Monitoring Failures</div>
+                    <div class="vuln-card-desc">Zero security event logging. Failed logins not logged. Data access events not audited. No alerts for suspicious activity. Admin access not tracked.</div>
+                    <div class="code-block">/api/logs → [] (empty!)<br>No audit trail exists</div>
+                </div>
+
+                <div class="vuln-card critical">
+                    <div class="vuln-card-id">A10:2021</div>
+                    <span class="severity-badge critical">CRITICAL</span>
+                    <div class="vuln-card-title">Server-Side Request Forgery (SSRF)</div>
+                    <div class="vuln-card-desc">Server fetches any URL supplied by user. Can access internal metadata services, internal APIs, or local files. No URL validation or allowlist.</div>
+                    <div class="code-block">POST /api/webhook/fetch<br>{"webhookUrl":"http://169.254.169.254/latest/meta-data/"}</div>
+                </div>
+
+            </div>
+
+            <br>
+            <div style="background:#111827; border:1px solid #1e293b; border-radius:10px; padding:20px;">
+                <h3 style="font-size:16px; color:#fff; margin-bottom:10px;">🛡️ Scan this site with VulnShield</h3>
+                <p style="font-size:13px; color:#64748b; margin-bottom:12px;">Copy the URL below and paste it into VulnShield's Website Scan panel:</p>
+                <div class="code-block" id="selfUrl">Loading URL...</div>
+                <div style="font-size:12px; color:#94a3b8; margin-top:10px;">VulnShield will detect: Missing CSP, Insecure headers, XSS vectors, SSRF endpoint, Outdated components, and more!</div>
+            </div>
+        </div>
+
+    </div><!-- /.content -->
+</div><!-- /.main -->
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- ⚠️ A03: Inline event handlers — also a CSP bypass vector -->
+<script>
+// ════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════
+let currentUser = null;
+let sessionToken = null;
+
+// ════════════════════════════════════════════════════════════
+// TOAST
+// ════════════════════════════════════════════════════════════
+function showToast(msg, type = 'success') {
+    const t = document.getElementById('toast');
+    t.innerHTML = msg;
+    t.className = `toast ${type}`;
+    t.style.display = 'block';
+    setTimeout(() => { t.style.display = 'none'; }, 3500);
+}
+
+// ════════════════════════════════════════════════════════════
+// PANEL NAVIGATION
+// ════════════════════════════════════════════════════════════
+function showPanel(id) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
+    document.getElementById('panel-' + id).classList.add('active');
+    document.getElementById('selfUrl').textContent = window.location.origin;
+}
+
+// ════════════════════════════════════════════════════════════
+// LOAD PRODUCTS
+// ════════════════════════════════════════════════════════════
+async function loadProducts() {
+    const res = await fetch('/api/products');
+    const products = await res.json();
+    const icons = { 'Electronics': '📱', 'Audio': '🎧', 'Laptops': '💻', 'Footwear': '👟' };
+    document.getElementById('productsGrid').innerHTML = products.map(p => `
+        <div class="product-card">
+            <div class="product-icon">${icons[p.category] || '📦'}</div>
+            <div class="product-name">${p.name}</div>
+            <div class="product-category">${p.category} • Stock: ${p.stock}</div>
+            <div class="product-price">₹${p.price.toLocaleString('en-IN')}<br><small>Incl. all taxes</small></div>
+            <button class="btn-cart" onclick="showToast('🛒 Added to cart: ${p.name}', 'success')">Add to Cart</button>
+        </div>
+    `).join('');
+}
+
+// ════════════════════════════════════════════════════════════
+// SEARCH — ⚠️ A03: XSS Demo
+// ════════════════════════════════════════════════════════════
+async function searchProducts() {
+    const q = document.getElementById('searchInput').value;
+    if (!q.trim()) return;
+
+    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+
+    document.getElementById('searchResultsBox').style.display = 'block';
+
+    // ⚠️ A03: Reflected XSS — query set as innerHTML (dangerous!)
+    document.getElementById('searchQueryDisplay').innerHTML = `"${data.query}"`;
+
+    if (data.results.length === 0) {
+        document.getElementById('searchResultsList').innerHTML = '<p style="color:#64748b;font-size:13px;">No products found.</p>';
+    } else {
+        document.getElementById('searchResultsList').innerHTML = data.results.map(p => `
+            <div style="padding:8px 0; border-bottom:1px solid #1e293b; font-size:13px; color:#e2e8f0;">
+                <strong>${p.name}</strong> <span style="color:#64748b;">— ₹${p.price.toLocaleString('en-IN')}</span>
+            </div>
+        `).join('');
+    }
+    showPanel('shop');
+}
+
+// Allow Enter key on search
+document.getElementById('searchInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') searchProducts();
+});
+
+// ════════════════════════════════════════════════════════════
+// LOGIN — ⚠️ A07
+// ════════════════════════════════════════════════════════════
+function fillCreds(u, p) {
+    document.getElementById('loginUser').value = u;
+    document.getElementById('loginPass').value = p;
+}
+
+async function doLogin() {
+    const username = document.getElementById('loginUser').value;
+    const password = document.getElementById('loginPass').value;
+
+    const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+        currentUser = data;
+        sessionToken = data.token;
+        updateUIForLogin(data);
+        showToast(`✅ Welcome ${data.username}! (Role: ${data.role})`, 'success');
+        loadProfile();
+        showPanel('profile');
+    } else {
+        // ⚠️ A03: XSS — error message set as innerHTML (unsanitized username in message)
+        document.getElementById('loginMsg').innerHTML = `<span style="color:#ef4444;">❌ ${data.message}</span>`;
+    }
+}
+
+function updateUIForLogin(data) {
+    document.getElementById('loginNavBtn').style.display = 'none';
+    document.getElementById('logoutNavBtn').style.display = '';
+    document.getElementById('profileSideBtn').style.display = '';
+    document.getElementById('transferSideBtn').style.display = '';
+    if (data.role === 'admin') document.getElementById('adminNavBtn').style.display = '';
+}
+
+async function doLogout() {
+    await fetch('/api/logout', { method: 'POST' });
+    currentUser = null; sessionToken = null;
+    document.getElementById('loginNavBtn').style.display = '';
+    document.getElementById('logoutNavBtn').style.display = 'none';
+    document.getElementById('profileSideBtn').style.display = 'none';
+    document.getElementById('transferSideBtn').style.display = 'none';
+    document.getElementById('adminNavBtn').style.display = 'none';
+    showToast('👋 Logged out', 'warning');
+    showPanel('shop');
+}
+
+// ════════════════════════════════════════════════════════════
+// PROFILE — ⚠️ A02 Sensitive data display
+// ════════════════════════════════════════════════════════════
+async function loadProfile() {
+    if (!sessionToken) return;
+    const res = await fetch(`/api/profile`, { headers: { 'Cookie': `token=${sessionToken}` }, credentials: 'include' });
+    const data = await res.json();
+
+    document.getElementById('profileAvatar').textContent = data.username ? data.username[0].toUpperCase() : '?';
+    document.getElementById('profileName').textContent = data.username;
+    document.getElementById('profileEmail').textContent = data.email;
+    document.getElementById('profileRole').textContent = `Role: ${data.role}`;
+
+    document.getElementById('profileGrid').innerHTML = `
+        <div class="info-card">
+            <label>Password <span class="vuln-tag">A02 EXPOSED</span></label>
+            <div class="value sensitive">${data.password}</div>
+        </div>
+        <div class="info-card">
+            <label>Balance</label>
+            <div class="value text-green">₹${(data.balance||0).toLocaleString('en-IN')}</div>
+        </div>
+        <div class="info-card">
+            <label>Card Number <span class="vuln-tag">A02 EXPOSED</span></label>
+            <div class="value sensitive">${data.card}</div>
+        </div>
+        <div class="info-card">
+            <label>CVV <span class="vuln-tag">A02 EXPOSED</span></label>
+            <div class="value sensitive">${data.cvv}</div>
+        </div>
+        <div class="info-card" style="grid-column:span 2;">
+            <label>Secret API Key <span class="vuln-tag">A02 EXPOSED</span></label>
+            <div class="value sensitive" style="font-size:11px;">${data.secretApiKey}</div>
+        </div>
+    `;
+
+    // IDOR links
+    document.getElementById('idorLinks').innerHTML = [1,2,3,4].map(id =>
+        `<a href="/api/user/${id}" target="_blank" style="color:#e94560;font-size:12px;margin-right:8px;">/api/user/${id}</a>`
+    ).join('');
+}
+
+// ════════════════════════════════════════════════════════════
+// TRANSFER — ⚠️ A04 Insecure Design
+// ════════════════════════════════════════════════════════════
+async function doTransfer() {
+    const toUser = document.getElementById('transferTo').value;
+    const amount = document.getElementById('transferAmount').value;
+
+    const res = await fetch('/api/transfer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ toUser, amount }),
+        credentials: 'include'
+    });
+    const data = await res.json();
+
+    if (data.success) {
+        const color = parseFloat(amount) < 0 ? '#ef4444' : '#22c55e';
+        document.getElementById('transferMsg').innerHTML =
+            `<span style="color:${color};">✅ ${data.message} | New Balance: ₹${data.newBalance}</span>`;
+        showToast(data.message, parseFloat(amount) < 0 ? 'error' : 'success');
+    } else {
+        document.getElementById('transferMsg').innerHTML = `<span style="color:#ef4444;">❌ ${data.error}</span>`;
+    }
+}
+
+// ════════════════════════════════════════════════════════════
+// DEMO ATTACKS
+// ════════════════════════════════════════════════════════════
+function demoXSS() {
+    document.getElementById('searchInput').value = "<img src=x onerror=alert('XSS! A03 Injection')>";
+    showPanel('shop');
+    showToast('💉 XSS payload loaded — click Search to trigger reflected XSS!', 'warning');
+}
+
+async function demoSSRF() {
+    showToast('🔁 Triggering SSRF to internal endpoint...', 'warning');
+    const res = await fetch('/api/webhook/fetch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ webhookUrl: window.location.origin + '/api/admin/users' })
+    });
+    const data = await res.json();
+    alert(`A10 SSRF Demo:\nServer fetched internal URL: ${data.url}\nResponse preview: ${data.response ? data.response.substring(0,200) : data.error}`);
+}
+
+async function demoIDOR() {
+    showToast('🔓 IDOR: Accessing admin user data as any user...', 'warning');
+    const res = await fetch('/api/user/1', { credentials: 'include' });
+    const data = await res.json();
+    alert(`A01 IDOR Demo:\nAccessed user #1 (admin) profile:\nPassword: ${data.password}\nCard: ${data.card}\nCVV: ${data.cvv}`);
+}
+
+async function demoDebug() {
+    window.open('/debug', '_blank');
+    showToast('🐛 A05: Debug endpoint opened — exposes ALL secrets!', 'error');
+}
+
+function gotoAdmin() {
+    window.open('/admin', '_blank');
+}
+
+// ════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════
+loadProducts();
+document.getElementById('selfUrl').textContent = window.location.origin;
+</script>
+</body>
+</html>
