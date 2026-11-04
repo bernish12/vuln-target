@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SecureShop — Admin Panel</title>
+<!-- ⚠️ A08: No SRI on CDN -->
+<!-- ⚠️ A06: Old jQuery 1.8.3 -->
+<script src="https://code.jquery.com/jquery-1.8.3.min.js"></script>
+<style>
+* { margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif; }
+body { background:#0a0a0a;color:#e0e0e0;padding:30px; }
+.banner { background:linear-gradient(135deg,#1a0a0a,#2d1515);border:1px solid #dc2626;border-radius:10px;padding:20px;margin-bottom:25px; }
+.banner h1 { color:#ef4444;font-size:22px;margin-bottom:5px; }
+.banner p { color:#fca5a5;font-size:13px; }
+.vuln-note { background:rgba(220,38,38,0.1);border-left:3px solid #dc2626;padding:10px 15px;border-radius:0 6px 6px 0;margin-bottom:20px;font-size:13px;color:#fca5a5; }
+table { width:100%;border-collapse:collapse;background:#111827;border-radius:10px;overflow:hidden; }
+th { background:#1e293b;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;padding:12px 15px;text-align:left; }
+td { padding:12px 15px;border-bottom:1px solid #1e293b;font-size:13px; }
+tr:last-child td { border-bottom:none; }
+.sensitive { color:#ef4444;font-family:monospace;font-size:12px; }
+.role-admin { color:#f59e0b;font-weight:700; }
+.role-user { color:#22c55e; }
+.section { margin-bottom:30px; }
+.section-title { font-size:18px;font-weight:700;color:#fff;margin-bottom:15px;padding-bottom:8px;border-bottom:1px solid #1e293b; }
+.secret-box { background:#111827;border:1px solid #dc2626;border-radius:8px;padding:15px;margin-bottom:10px; }
+.secret-key { color:#64748b;font-size:11px;text-transform:uppercase; }
+.secret-val { color:#ef4444;font-family:monospace;font-size:13px;word-break:break-all; }
+</style>
+</head>
+<body>
+<div class="banner">
+    <h1>⚡ Admin Panel — SecureShop</h1>
+    <p>⚠️ A01 Broken Access Control: This page is accessible to ANY logged-in user (no admin role check!)</p>
+</div>
+
+<div class="vuln-note">
+    🔴 <strong>OWASP A01: Broken Access Control</strong> — Any authenticated user can reach this admin panel. No role verification is performed. Additionally, all user passwords, card numbers, and CVV codes are exposed below (A02 Cryptographic Failure).
+</div>
+
+<div class="section">
+    <div class="section-title">👥 All Users (Passwords Exposed — A02)</div>
+    <table id="usersTable">
+        <thead>
+            <tr><th>ID</th><th>Username</th><th>Password ⚠️</th><th>Role</th><th>Email</th><th>Balance</th><th>Card Number ⚠️</th><th>CVV ⚠️</th></tr>
+        </thead>
+        <tbody id="usersBody"><tr><td colspan="8" style="color:#64748b;text-align:center;">Loading...</td></tr></tbody>
+    </table>
+</div>
+
+<div class="section">
+    <div class="section-title">🔑 Hardcoded Secrets (A02)</div>
+    <div id="secretsBox">Loading...</div>
+</div>
+
+<script>
+fetch('/api/admin/users', { credentials: 'include' })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) {
+            document.getElementById('usersBody').innerHTML = `<tr><td colspan="8" style="color:#ef4444;">${data.error}</td></tr>`;
+            return;
+        }
+        document.getElementById('usersBody').innerHTML = data.users.map(u => `
+            <tr>
+                <td>${u.id}</td>
+                <td><strong>${u.username}</strong></td>
+                <td class="sensitive">${u.password}</td>
+                <td class="${u.role === 'admin' ? 'role-admin' : 'role-user'}">${u.role}</td>
+                <td>${u.email}</td>
+                <td style="color:#22c55e;">₹${u.balance.toLocaleString('en-IN')}</td>
+                <td class="sensitive">${u.card}</td>
+                <td class="sensitive">${u.cvv}</td>
+            </tr>
+        `).join('');
+
+        if (data.secrets) {
+            document.getElementById('secretsBox').innerHTML = Object.entries(data.secrets).map(([k,v]) => `
+                <div class="secret-box">
+                    <div class="secret-key">${k}</div>
+                    <div class="secret-val">${v}</div>
+                </div>
+            `).join('');
+        }
+    })
+    .catch(e => {
+        document.getElementById('usersBody').innerHTML = `<tr><td colspan="8" style="color:#ef4444;">Error: ${e.message} (Are you logged in?)</td></tr>`;
+    });
+</script>
+</body>
+</html>
