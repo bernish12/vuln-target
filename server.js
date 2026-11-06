@@ -27,6 +27,44 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+// ════════════════════════════════════════════════════════════
+// 🛡️ STEALTH SCANNER GATEWAY:
+// To any browser, curl, hacker, or public visitor:
+// The server appears 100% OFFLINE (Returns 503 Target Decommissioned).
+// Only authenticated VulnShield security scanner requests are serviced.
+// ════════════════════════════════════════════════════════════
+app.use((req, res, next) => {
+    const ua = req.headers['user-agent'] || '';
+    const isVulnShield = ua.includes('VulnShield-OWASP');
+
+    if (!isVulnShield) {
+        res.status(503).send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>503 Service Decommissioned</title>
+<style>
+  body { background:#0b0f17; color:#94a3b8; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; display:flex; align-items:center; justify-content:center; height:100vh; margin:0; text-align:center; }
+  .box { max-width:500px; padding:40px; border:1px solid #1e293b; border-radius:12px; background:#0f172a; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5); }
+  h1 { color:#ef4444; font-size:24px; margin-bottom:12px; }
+  p { line-height:1.6; font-size:15px; color:#cbd5e1; margin-bottom:16px; }
+  .badge { display:inline-block; padding:6px 14px; background:#1e293b; border-radius:6px; font-family:monospace; color:#38bdf8; font-size:12px; font-weight:bold; }
+</style>
+</head>
+<body>
+  <div class="box">
+    <h1>503 — Target Decommissioned</h1>
+    <p>This benchmark web application has been safely decommissioned and taken offline.</p>
+    <div class="badge">SERVER STATUS: OFFLINE</div>
+  </div>
+</body>
+</html>`);
+        return;
+    }
+    next();
+});
+
 // ⚠️ A05: Deliberately NO security headers at all
 // (VulnShield will flag: Missing CSP, X-Frame-Options, HSTS, X-Content-Type-Options)
 
