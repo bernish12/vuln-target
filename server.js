@@ -48,7 +48,7 @@ app.use((req, res, next) => {
 // ════════════════════════════════════════════════════════════
 const USERS_DB = [
     { id: 1, username: 'admin',    password: 'admin123',     role: 'admin',    email: 'admin@secureshop.com',   balance: 99999, card: '4111111111111111', cvv: '123' },
-    { id: 2, username: 'bernish',  password: 'password',     role: 'user',     email: 'bernish@gmail.com',      balance: 5000,  card: '4222222222222222', cvv: '456' },
+    { id: 2, username: 'customer', password: 'password123',  role: 'user',     email: 'customer@secureshop.com', balance: 5000,  card: '4222222222222222', cvv: '456' },
     { id: 3, username: 'alice',    password: '123456',       role: 'user',     email: 'alice@example.com',      balance: 2500,  card: '4333333333333333', cvv: '789' },
     { id: 4, username: 'bob',      password: 'qwerty',       role: 'user',     email: 'bob@example.com',        balance: 1200,  card: '4444444444444444', cvv: '321' },
 ];
