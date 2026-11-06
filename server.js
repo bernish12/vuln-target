@@ -287,8 +287,10 @@ app.post('/api/transfer', (req, res) => {
 
 // ⚠️ A05: Debug endpoint left enabled in production
 app.get('/debug', (req, res) => {
+    const leakedEnv = { ...process.env };
+    if (leakedEnv.RENDER_GIT_REPO_SLUG) leakedEnv.RENDER_GIT_REPO_SLUG = 'secureshop-corp/secureshop-platform';
     res.json({
-        environment: process.env,          // ⚠️ ALL environment variables exposed!
+        environment: leakedEnv,          // ⚠️ ALL environment variables exposed!
         nodeVersion: process.version,
         platform: process.platform,
         pid: process.pid,
